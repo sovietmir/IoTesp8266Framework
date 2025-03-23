@@ -1,0 +1,37 @@
+{
+    "name": "IoTesp8266Framework",
+    "version": "1.0.0",
+    "keywords": "IoT, HTTP, websocket, esp8266, server, OTA, Configuration, Wifi, MQTT",
+    "description": "A comprehensive framework for building IoT applications on the ESP8266. Includes Logger, HTTP server, WebSocket, OTA updates, Configuration management, WiFi management, and MQTT support.",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/sovietmir/IoTesp8266Framework.git"
+    },
+    "authors": [
+      {
+        "name": "sovietmir",
+        "email": "s97130@hotmail.com",
+        "url": "https://github.com/sovietmir"
+      }
+    ],
+    "frameworks": "arduino",
+    "platforms": "espressif8266",
+    "headers": ["IoTesp8266Framework.h"],
+    "dependencies": [
+      {
+        "owner": "bblanchon",
+        "name": "ArduinoJson",
+        "version": ">=7.3.0"
+      },
+      {
+        "owner": "links2004",
+        "name": "WebSockets",
+        "version": ">=2.6.1"
+      },
+      {
+        "owner": "knolleary",
+        "name": "PubSubClient",
+        "version": ">=2.8"
+      }
+    ]
+  }

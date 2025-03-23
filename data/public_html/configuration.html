@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Configuration</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+    <h1>Configure Your IoT Device</h1>
+    <form name="configForm" data-id="config"
+        data-message-ok="Configuration saved successfully." 
+        data-message-nok1="Bad Request."
+        data-message-nok2="Failed to deserializeJson the request data."
+        data-message-nok3="Failed to save configuration.">
+        <fieldset name="wifi"><legend>LAN Wifi Access Point</legend>
+          <div><label><span>SSID:</span> <input type="text" name="ssid" required></label> <select type="text" name="APs" onchange="setSSID()"><option value="" disabled selected>Select a nearby AP</option></select></div>
+          <div><label><span>Password:</span> <input type="password" name="password" required></label></div>
+          <div><label><span>Hostname:</span> <input type="text" name="hostname" required></label></div>
+        </fieldset>
+
+        <fieldset name="http"><legend>HTTP</legend>
+            <div><label><span>entryPointUrl:</span> <input type="text" name="entryPointUrl"></label></div>
+        </fieldset>
+
+        <fieldset name="mqtt"><legend>MQTT</legend>
+            <div><label><span>Broker:</span> <input type="text" name="broker" required></label></div>
+            <div><label><span>Port:</span> <input type="number" name="port" value="1883" required></textarea></label></div>
+            <div><label><span>Username:</span> <input type="text" name="username"></textarea></label></div>
+            <div><label><span>Password:</span> <input type="password" name="password"></textarea></label></div>
+            <div><label><span>Client Id:</span> <input type="text" name="clientId"></textarea></label></div>
+        </fieldset>
+          
+        <fieldset name="device"><legend>Device</legend>
+          <div><label><span>Name:</span> <input type="text" name="name" required></label></div>
+          <div><label><span>Description:</span> <textarea name="description"></textarea></label></div>
+          <div><label><span>Periodicity:</span> <input type="number" name="periodicity" value="10000">ms</label></div>
+        </fieldset>
+
+        <fieldset name="time"><legend>Time</legend>
+            <div><label><span>Server:</span> <input type="text" name="server" value="pool.ntp.org"></label></div>
+            <div><label><span>Zone:</span> <input type="text" name="zone" value=""> available values are <a href="https://github.com/esp8266/Arduino/blob/master/cores/esp8266/TZ.h" target="_blank">here</a></label></div>
+        </fieldset>
+        <button type="submit">Save</button>
+    </form>
+
+    <form name="defaultConfigForm" data-id="default"
+        data-message-ok="Configuration saved successfully." 
+        data-message-nok1="Bad Request."
+        data-message-nok2="Failed to deserializeJson the request data."
+        data-message-nok3="Failed to save configuration.">
+        <fieldset name="wifiAP"><legend>Wifi Access Point to Create</legend>
+          <p>In case the connection to the LAN Access Point is not possible, then created an AP with below properies:</p>
+          <div><label><span>SSID:</span> <input type="text" name="APssid" required></label></div>
+          <div><label><span>Password:</span> <input type="password" name="APpassword" required></label></div>
+        </fieldset>
+        <button type="submit">Save</button>
+    </form>
+
+    <script>
+        const nearbyAPs = async function() {            
+            try {
+                // Fetch nearby Wi-Fi APs
+                const response = await fetch('/api/nearby-ap');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch nearby APs');
+                }
+                const apList = await response.json(); // Expecting an array of SSIDs
+
+                // Populate the select[name=ssid] element
+                const ssidSelect = document.querySelector('select[name=APs]');
+                //ssidSelect.innerHTML = ''; // Clear existing options
+                apList.forEach(ap => {
+                    const option = document.createElement('option');
+                    option.value = ap;
+                    option.textContent = ap;
+                    ssidSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching nearby APs:', error);
+            }
+        }
+
+        function setSSID(){
+            const selectElmt = document.querySelector('form[name=configForm] select[name=APs]');
+            const inputField = document.querySelector('form[name=configForm] input[name=ssid]');
+            inputField.value = selectElmt.value; // Update input field value with selected value
+        }
+        
+
+
+        document.addEventListener('DOMContentLoaded', function(){  document.querySelectorAll('form[name][data-id]').forEach((form, index) => {form.dispatchEvent(new Event('read', {bubbles: false}))}); });
+        document.addEventListener('DOMContentLoaded', nearbyAPs);
+
+        document.querySelectorAll('form[name][data-id]').forEach((form, index) => {
+            form.addEventListener('read', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    // Fetch current configuration from the server
+                    const URI = "/api/"+(this.getAttribute("data-id") || "config")+"/read";;
+                    const response = await fetch(URI, {method: 'GET'});
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch current configuration');
+                    }
+                    const config = await response.json();
+
+                    // Populate the form with the current configuration
+                    const fieldsets = e.target.querySelectorAll('fieldset');
+                    fieldsets.forEach(fieldset => {
+                        const groupName = fieldset.getAttribute('name');
+                        if (config[groupName]) {
+                            fieldset.querySelectorAll('input, select, textarea').forEach(input => {
+                                const name = input.getAttribute('name');
+                                if (name && config[groupName][name] !== undefined) {
+                                    if (input.type === 'checkbox') {
+                                        input.checked = config[groupName][name];
+                                    } else {
+                                        input.value = config[groupName][name];
+                                    }
+                                }
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error fetching current configuration:', error);
+                }
+            });
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                //const data = Object.fromEntries(formData.entries());
+                const data = {};
+                // Iterate over fieldsets and group data
+                const fieldsets = e.target.querySelectorAll('fieldset');
+                fieldsets.forEach(fieldset => {
+                const groupName = fieldset.getAttribute('name');
+                const groupData = {};
+
+                // Collect inputs within the fieldset
+                fieldset.querySelectorAll('input, select, textarea').forEach(input => {
+                    const name = input.getAttribute('name');
+                    if (name) {
+                        groupData[name] = input.type === 'checkbox' ? input.checked : input.value;
+                        if(input.type === 'number') groupData[name] = parseInt(groupData[name]); 
+                    }
+                });
+
+                data[groupName] = groupData;
+                });
+
+                const URI = "/api/"+(this.getAttribute("data-id") || "conf")+"/save";
+                const response = await fetch(URI, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });                
+
+                const result = await response.json();
+                const message = form.getAttribute("data-message-"+(result.status || ""))|| result.message || result.error || "";
+                if(message!="") alert(message);                
+            });
+        });
+    </script>
+</body>
+</html>

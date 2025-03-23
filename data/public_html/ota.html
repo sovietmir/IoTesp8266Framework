@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTA File Upload</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+    <h1>OTA functionalities</h1>
+    <form method="POST" action="/api/firmware" enctype="multipart/form-data" 
+    data-message-ok="Firmware updated successfully. Rebooting..." 
+    data-message-nok1="Firmware update failed to start."
+    data-message-nok2="Firmware update failed."
+    data-message-nok3="Firmware update aborted.">
+        <fieldset name="wifi"><legend>Upload Firmware</legend>
+            <div><label title="Select firmaware file (.bin)"><span>Firmware File:</span> <input type="file" id="firmware" name="file" required></label></div>
+            <button type="submit">Upload Firmware</button>
+        </fieldset>
+    </form>
+
+    <form method="GET" action="/api/reboot" data-message-ok="Microcontroller shall reboot in half a second.">
+        <fieldset name="wifi"><legend>Microcontroller reboot</legend>
+            <button type="submit">Reboot</button>
+        </fieldset>
+    </form>
+
+    <h1>File System Tree</h1>
+    <div class="main">
+        <div class="stats">
+            Space: total <span data-field="total"></span>;
+            used <span data-field="used"></span>;
+            free <span data-field="free"></span>;
+            <button onclick="fetchFileSystem()" title="Fetch file system space allocation and file tree from the microcontroller">🔄 Refresh</button>
+        </div>
+        <div id="fileTree"></div>
+        <ul class="tree shablon">
+            <li data-path="">
+                <div class="line">
+                    <span data-field="name"></span>
+                    <span data-field="size"></span>
+                    <span class="controls">                    
+                        <button data-action="add">Add Directory</button>
+                        <button data-action="upload">Add File</button>
+                        <button data-action="download">Download</button>
+                        <button data-action="delete">Delete</button>
+                    </span>
+                </div>
+            </li>
+        </ul>
+
+    </div>
+
+    
+    <div id="uploadFile" class="popup hidden">
+        <div class="close">&times</div>
+        <form method="POST" action="/api/upload" enctype="multipart/form-data"
+            data-message-ok="File uploaded successfully." 
+            data-message-nok1="Failed to open file for writing."
+            data-message-nok2="Failed to save file."
+            data-message-nok3="File upload aborted.">
+            <input type="hidden" name="directory" value="/">
+            <fieldset name="wifi"><legend>Upload File</legend>
+                <div>Into directory: "<strong data-field="directory"></strong>"</div>
+                <div><label title="Select a file"><span>Choose File:</span> <input type="file" name="file" required></label></div>
+                <button type="submit">Upload</button>
+            </fieldset>
+        </form>
+    </div>
+    <div class="overlay hidden"></div>
+
+<script>
+const _originAddEventListener = HTMLElement.prototype.addEventListener;
+const _originRemoveEventListener = HTMLElement.prototype.removeEventListener;
+const _originCloneNode = HTMLElement.prototype.cloneNode;
+const _eventListeners = [];
+
+const getEventIndex = (target, targetArgs) => _eventListeners.findIndex(([elem, args]) => {
+    if(elem !== target) {
+        return false;
+    }
+
+    for (let i = 0; i < args.length; i++) {
+        if(targetArgs[i] !== args[i]) {
+            return false;
+        }
+    }
+
+    return true;
+});
+
+const getEvents = (target) => _eventListeners.filter(([elem]) => {
+    return elem === target;
+});
+
+const cloneEvents = (source, element, deep) => {
+    for (const [_, args] of getEvents(source)) {
+        _originAddEventListener.apply(element, args);
+    }
+
+    if(deep) {
+        for(const i of source.childNodes.keys()) {
+            const sourceNode = source.childNodes.item(i);
+            if(sourceNode instanceof HTMLElement) {
+                const targetNode = element.childNodes.item(i);
+                cloneEvents(sourceNode, targetNode, deep);
+            }
+        }
+    }
+};
+
+HTMLElement.prototype.addEventListener = function() {
+    _eventListeners.push([this, arguments]);
+    return _originAddEventListener.apply(this, arguments);
+};
+
+HTMLElement.prototype.removeEventListener = function() {
+
+    const eventIndex = getEventIndex(this, arguments);
+
+    if(eventIndex !== -1) {
+        _eventListeners.splice(eventIndex, 1);
+    }
+
+    return _originRemoveEventListener.apply(this, arguments);
+};
+
+HTMLElement.prototype.cloneNode = function(deep) {
+    const clonedNode = _originCloneNode.apply(this, arguments);
+    if(clonedNode instanceof HTMLElement){
+        cloneEvents(this, clonedNode, deep);
+    }
+    return clonedNode;
+};
+</script>
+    <script>
+
+        const treeShablonLiElement = document.querySelector('ul.tree.shablon > li');        
+        treeShablonLiElement.addEventListener('load', function (event) {
+            event.stopPropagation();
+            const data = event.detail;
+            
+            this.setAttribute("data-path", data.path || "/");
+            this.querySelector(":scope > div.line > span[data-field=name]").textContent = data.name || "/"; 
+            if(data.type=="directory"){
+                this.classList.add('directory');
+                this.classList.add('opened');
+                this.querySelector(":scope > div.line > span[data-field=size]").remove();
+                this.querySelector(":scope > div.line > span.controls > button[data-action=download]").remove();
+                const ul = document.querySelector('ul.tree.shablon').cloneNode(true)
+                this.appendChild(ul);
+                ul.classList.remove('shablon');
+                ul.querySelector(":scope > li").remove();
+            }
+            else { // it is file
+                this.classList.add('file');
+                this.querySelector(":scope > div.line > span[data-field=size]").textContent = formatBytes(data.size || 0, 2); 
+                this.querySelector(":scope > div.line > span.controls > button[data-action=add]").remove();
+                this.querySelector(":scope > div.line > span.controls > button[data-action=upload]").remove();
+                this.querySelector(":scope > div.line > span.controls > button[data-action=download]").remove(); // Remove dounload button since the download functionality is added on span[data-field=name] click ecvent
+            }
+        });
+        treeShablonLiElement.querySelector(":scope > div.line > span[data-field=name]").addEventListener('click', function (event) {
+            event.stopPropagation();
+            const li = this.parentNode.parentNode;
+            if(li.classList.contains("directory")){
+                const childUl = li.querySelector(":scope > ul");
+                const isHidden = childUl.classList.toggle("hidden");
+                li.classList.toggle('opened', !isHidden);
+            }
+            else { // The element is file, then by clicking initiate download
+                const path = li.getAttribute("data-path");
+                downloadFile(path);
+            }
+        });
+        const buttons = treeShablonLiElement.querySelectorAll(':scope > div.line > span.controls > button[data-action]')
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener('click', function (event) {
+                event.stopPropagation();
+                const action = this.getAttribute("data-action");
+                const path = this.parentNode.parentNode.parentNode.getAttribute("data-path");
+                if(action==="delete"){
+                    deleteItem(path);
+                }
+                if(action==="add"){
+                    addDirectory(path)
+                }
+                if(action==="upload"){
+                    showUploadFile(path)
+                }
+                if(action==="download"){
+                    downloadFile(path);
+                }
+            });
+            buttons[i].addEventListener('mouseover', function () {
+                const line = this.parentNode.parentNode;
+                line.classList.add("over");
+            });
+            buttons[i].addEventListener('mouseout', function () {
+                const line = this.parentNode.parentNode;
+                line.classList.remove("over");
+            });            
+        }
+
+
+        
+
+
+        function populateTree(data) {
+            const ulTree = document.querySelector('ul.tree.shablon').cloneNode(true);
+            const fileTree = document.querySelector('div[id=fileTree]');
+            fileTree.innerHTML = ""; // Clear existing tree
+            fileTree.appendChild(ulTree); 
+
+            const divMain = fileTree.parentNode;
+            divMain.querySelector(":scope > .stats [data-field=total]").textContent = formatBytes(data.total || 0, 2); 
+            divMain.querySelector(":scope > .stats [data-field=used]").textContent = formatBytes(data.used || 0, 2); 
+            divMain.querySelector(":scope > .stats [data-field=free]").textContent = formatBytes(data.free || 0, 2); 
+
+
+            ulTree.classList.remove('shablon');
+            ulTree.querySelector(":scope > li").dispatchEvent(new CustomEvent('load', { detail: {"type": "directory", "path": "/", "name": "root"} })); // Trigger the custom event
+            ulTree.querySelector(":scope > li > div.line > span.controls > button[data-action=delete]").remove();
+            const rootUl = ulTree.querySelector(":scope > li > ul");          
+            const pathMap = { '/': rootUl }; // Map to track parent-child relationships.
+
+            const files = data.files || [];
+            files.forEach((file) => {
+                const parts = file.name.split('/').filter(Boolean);
+                let currentPath = '';
+                let currentUl = rootUl;
+                parts.forEach((part, index) => {
+                    currentPath += `/${part}`;
+                    if (!pathMap[currentPath]) {
+                        const detail = {
+                            "type": (index < parts.length-1)?"directory":file.type, 
+                            "path": currentPath, 
+                            "name": part
+                        };
+                        if(index === parts.length-1 && file.type==="file") {
+                            detail.size = file.size;
+                        }
+                        const type = (index < parts.length-1)?"directory":file.type;
+                        const li = treeShablonLiElement.cloneNode(true);
+                        currentUl.appendChild(li);
+                        li.dispatchEvent(new CustomEvent('load', { detail: detail })); // Trigger the custom event
+                        pathMap[currentPath] = li.querySelector(":scope > ul");
+                    }
+                    currentUl = pathMap[currentPath];
+                });
+            });            
+
+        }
+
+
+        async function fetchFileSystem() {
+            try {
+                const response = await fetch('/api/files'); // Fetch file system data from the API.
+                const fileSystem = await response.json();
+                populateTree(fileSystem);
+                //const fileTree = document.getElementById('fileTree');
+                //fileTree.innerHTML = ""; // Clear existing tree
+                //const root = buildTree(fileSystem);
+                //fileTree.appendChild(root);
+            } catch (error) {
+                console.error('Error fetching file system:', error);
+            }
+        }
+
+        async function deleteItem(path) {
+            if (confirm(`Are you sure you want to delete "${path}"?`)) {
+                try {
+                    const response = await fetch(`/api/delete?path=${encodeURIComponent(path)}`, {method: 'DELETE'});
+                    const result = await response.json();
+                    alert(result.status || result.error);
+                    fetchFileSystem(); // Refresh the tree
+                } catch (error) {
+                    console.error('Error deleting item:', error);
+                }
+            }
+        }
+
+        async function addDirectory(parentPath) {
+            const dirName = prompt('Enter the name of the new directory:');
+            if (dirName) {
+                try {
+                    const response = await fetch('/api/addDirectory', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ parentPath, dirName }),
+                    });
+                    const result = await response.json();
+                    alert(result.status || result.error);
+                    fetchFileSystem(); // Refresh the tree
+                } catch (error) {
+                    console.error('Error adding directory:', error);
+                }
+            }
+        }
+
+        async function downloadFile(filePath) {
+            const a = document.createElement('a');
+            a.href = `/api/download?file=${encodeURIComponent(filePath)}`;
+            a.download = filePath.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function showUploadFile(path) {
+            const popup = document.getElementById('uploadFile');
+            const overlay = document.querySelector('.overlay');
+            const form = document.querySelector("form[action='/api/upload']");
+  
+            popup.classList.remove("hidden");
+            overlay.classList.remove("hidden");           
+            form.reset();
+            form.querySelector("input[name=directory]").value = path;
+            form.querySelector("[data-field=directory]").textContent = path;
+        }
+        function hideUploadFile() {
+            const popup = document.getElementById('uploadFile');
+            const overlay = document.querySelector('.overlay');
+            const form = document.querySelector("form[action='/api/upload']");
+  
+            popup.classList.add("hidden");
+            overlay.classList.add("hidden");
+            form.reset();
+        }
+        document.querySelector("[id=uploadFile] > .close").addEventListener('click', function (event) {
+            event.preventDefault(); 
+            hideUploadFile();
+        });
+
+        document.querySelector("form[action='/api/upload']").addEventListener('submit', async function (event) {
+            event.preventDefault(); // Prevent the default form submission 
+            const form = event.target;
+            const formData = new FormData(form);
+
+            try {
+                // Submit the form data using Fetch API
+                const response = await fetch(form.action, {
+                    method: form.method,
+                    body: formData,
+                });
+
+                const result = await response.json();
+                const message = form.getAttribute("data-message-"+(result.status || ""))|| result.message || result.error || "";
+                if(message!="") alert(message);
+                
+            } catch (error) {
+                const message = form.getAttribute("data-message-exception") || error.message || "";
+                if(message!="") alert(message);
+            }
+        });
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024; // Change to 1000 if you prefer decimal-based units
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+        }
+        
+
+        document.querySelector("form[action='/api/firmware']").addEventListener('submit', async function (event) {
+            event.preventDefault(); // Prevent the default form submission 
+            const form = event.target;
+            const formData = new FormData(form);
+
+            try {
+                // Submit the form data using Fetch API
+                const response = await fetch(form.action, {
+                    method: form.method,
+                    body: formData,
+                });
+
+                // Parse the response if it's JSON                    
+                const result = await response.json();
+                const message = form.getAttribute("data-message-"+(result.status || ""))|| result.message || result.error || "";
+                if(message!="") alert(message);
+                
+            } catch (error) {
+                const message = form.getAttribute("data-message-exception") || error.message || "";
+                if(message!="") alert(message);
+            }
+        });
+
+        document.querySelector("form[action='/api/reboot']").addEventListener('submit', async function (event) {
+            event.preventDefault(); // Prevent the default form submission 
+            const form = event.target;
+            try {
+                // Submit the form data using Fetch API
+                const response = await fetch(form.action, {
+                    method: form.method
+                });
+
+                const result = await response.json();
+                const message = form.getAttribute("data-message-"+(result.status || ""))|| result.message || result.error || "";
+                if(message!="") alert(message);
+                
+            } catch (error) {
+                const message = form.getAttribute("data-message-exception")||error.message || "";
+                if(message!="") alert(message);
+            }
+        });
+
+        // Fetch and render the file system tree on page load.
+         window.onload = fetchFileSystem;
+    </script>
+</body>
+</html>
