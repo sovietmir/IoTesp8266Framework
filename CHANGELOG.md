@@ -7,7 +7,10 @@ Method begin() of classes of interface `Logger` is enriched with `Serial.begin()
  - TelnetLogger::begin()
  
 ### Modified 
-Comments are rephrased.
+- A comment in Logger.h
+- Some rephrasing in README.md
+
+
 
 
 ## [1.0.0] - 2025-03-23
