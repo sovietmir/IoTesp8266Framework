@@ -3,24 +3,24 @@
 A comprehensive framework for building IoT applications on the ESP8266 microcontroller. This library provides functionality for handling common IoT tasks such as WiFi connectivity, OTA updates, MQTT communication, and more. 
 
 ## Features
-- **HTTPServerManager**: Serve static files (e.g., HTML, CSS, JS) and handle HTTP requests (GET, POST, etc.). Allows integration of additional endpoints.
-- **WebSocket**: Real-time communication with clients.
+- **HTTP Server**: Serve static files (e.g., HTML, CSS, JS) and handle HTTP requests (GET, POST, etc.). Built-in WebSocket integration. Allows integration of additional endpoints.
 - **Logger**: Abstract logging for debugging.
 - **OTA**: Over-The-Air updates for the ESP8266.
-- **ConfigurationManager**:  Manage configuration files in JSON format, with support for reading, writing, and HTTP API access..
-- **WiFiManager**: Manage WiFi connections.
-- **MqttManager**: Publish and subscribe to MQTT topics.
+- **WiFi**: Manage WiFi connections.
+- **MQTT**: Publish and subscribe to MQTT topics.
+- **Configuration**:  Manage configuration files in JSON format, with support for reading, writing, and HTTP API access..
+
 
 ## Installation
 ### Manual Installation
-1. Download the library as a ZIP file or clone the repository into a directory, for example: `/somePath/IoTesp8266Framework`.
+1. Download the library as a ZIP file or clone the repository into a directory:
    ```sh
-   git clone https://github.com/sovietmir/IoTesp8266Framework.git /somePath/IoTesp8266Framework
+   git clone https://github.com/sovietmir/IoTesp8266Framework.git
    ```
 2. Add the library to your PlatformIO project by placing it in the `lib/` folder or specifying the local path (adding it as a dependency) in `platformio.ini`:
    ```ini
    lib_deps =
-       	file:///somePath/IoTesp8266Framework
+       	file:///path/to/IoTesp8266Framework
    ```
 ### PlatformIO Dependency
 1. Add the library to your PlatformIO project by adding it as a dependency in `platformio.ini`:
@@ -56,7 +56,7 @@ In your project include the main library header, that includes all the class hea
 ```cpp
 #include <IoTesp8266Framework.h>
 ```
-or include the relevant headers:
+or include individual modules:
 ```cpp
 #include <ConfigurationManager/ConfigurationManager.h>
 #include <HTTPServerManager/HTTPServerManager.h>
@@ -66,45 +66,32 @@ or include the relevant headers:
 #include <MqttManager/MqttManager.h>
 ```
 
+## Component Documentation
+| Component | Description | Documentation |
+|-----------|-------------|---------------|
+| `HTTPServerManager` | HTTP server with static file serving | [View](documentation/HTTPServerManager.md) |
+| `Logger` | Unified logging interface | [View](documentation/Logger.md) |
+| `OTA` | Over-the-air updates | [View](documentation/OTA.md) |
+| `WiFiManager` | Dual-mode WiFi management | [View](documentation/WiFiManager.md) |
+| `MqttManager` | MQTT client wrapper | [View](documentation/MqttManager.md) |
+| `ConfigurationManager` | JSON config management | [View](documentation/ConfigurationManager.md) |
+
+
 ## Structure 
 
 ```
 IoTesp8266Framework/
 ├── src/
-│   ├── HTTPServerManager/
-│   │   ├── HTTPServerManager.h
-│   │   └── HTTPServerManager.cpp
-│   ├── Logger/
-│   │   ├── Logger.h
-│   │   ├── ConsoleLogger.h
-│   │   ├── ConsoleLogger.cpp
-│   │   ├── TelnetLogger.h
-│   │   └── TelnetLogger.cpp
-│   ├── OTA/
-│   │   ├── OTA.h
-│   │   └── OTA.cpp
-│   ├── WiFiManager/
-│   │   ├── WiFiManager.h
-│   │   └── WiFiManager.cpp
-│   ├── MqttManager/
-│   │   ├── MqttManager.h
-│   │   └── MqttManager.cpp
-│   ├── HTTPServerManager/
-│   │   ├── HTTPServerManager.h
-│   │   └── HTTPServerManager.cpp
-│   └── ConfigurationManager/
-│       ├── ConfigurationManager.h
-│       └── ConfigurationManager.cpp
-├── data/
-│   ├── public_html/
-│   │   ├── configuration.html
-│   │   ├── index.html
-│   │   ├── ota.hml
-│   │   └── styles.css
-│   └── config.json
+│   ├── HTTPServerManager/      # [Docs](documentation/HTTPServerManager.md)
+│   ├── Logger/                 # [Docs](documentation/Logger.md)
+│   ├── OTA/                    # [Docs](documentation/OTA.md)
+│   ├── WiFiManager/            # [Docs](documentation/WiFiManager.md)
+│   ├── MqttManager/            # [Docs](documentation/MqttManager.md)
+│   └── ConfigurationManager/   # [Docs](documentation/ConfigurationManager.md)
+├── data/                       # Static files and configs
+├── documentation/              # Component documentation
 ├── library.json
-├── CHANGELOG.md
+├── CHANGELOG.json
 └── README.md
 ```
-
 ---
