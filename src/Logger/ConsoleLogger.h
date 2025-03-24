@@ -5,6 +5,8 @@
 
 class ConsoleLogger : public Logger {
 public:
+    void begin() override;
+
     void log(const char* message) override;
 };
 

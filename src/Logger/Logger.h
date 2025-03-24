@@ -13,7 +13,7 @@ public:
         log(message.c_str());
     }
 
-    // New logf method. This is variadic template. Usage example: logger.logf("Date Now is %s, Timestamp is %ld", "2025-01-13T12:34:56Z", timestamp);
+    // This is variadic template. Usage example: logger.logf("Date Now is %s, Timestamp is %ld", "2025-01-13T12:34:56Z", timestamp);
     template <typename... Args>
     void logf(const char* format, Args... args) {
         char buffer[128]; // Adjust size as needed

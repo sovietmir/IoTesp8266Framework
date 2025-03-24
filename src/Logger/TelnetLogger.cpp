@@ -5,6 +5,7 @@ TelnetLogger::TelnetLogger(uint16_t port) : telnetServer(port) {}
 
 // Initialize the Telnet logger
 void TelnetLogger::begin() {
+    Serial.begin(115200); ///< This is needed since TelnetLogger::log method dublicates the output into Serial
     telnetServer.begin();
     telnetServer.setNoDelay(true);
     //Serial.println("Telnet server started");

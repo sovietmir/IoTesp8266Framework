@@ -30,7 +30,7 @@ A comprehensive framework for building IoT applications on the ESP8266 microcont
    ```
 
 ## Filesystem Setup
-To use features like `HTTPServerManager`, `OTA`, and `ConfigurationManager`, you need to build and upload a filesystem image to the microcontroller. This filesystem contains static files (e.g., HTML, CSS) and initial configuration file required by the framework.
+To use features like `HTTPServerManager`, `OTA`, and `ConfigurationManager`, you need to build and upload a filesystem image to the microcontroller. This filesystem contains static files (e.g., HTML, CSS) and an example of configuration file that could be used by the framework.
 
 1. Copy the `data/` folder from the framework into your project directory.
 2. Configure PlatformIO to use LittleFS by adding the following to `platformio.ini`:
