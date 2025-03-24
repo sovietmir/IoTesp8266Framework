@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.1.1] - 2025-03-24
+### Added
+Added documantation for each component
+
 ## [1.1.0] - 2025-03-24
 ### Fix
 Method begin() of classes of interface `Logger` is enriched with `Serial.begin()`. Methods affected: 
