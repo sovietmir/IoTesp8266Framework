@@ -1,6 +1,6 @@
 {
     "name": "IoTesp8266Framework",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "keywords": "IoT, HTTP, websocket, esp8266, server, OTA, Configuration, Wifi, MQTT",
     "description": "A comprehensive framework for building IoT applications on the ESP8266. Includes Logger, HTTP server, WebSocket, OTA updates, Configuration management, WiFi management, and MQTT support.",
     "repository": {
