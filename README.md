@@ -64,6 +64,7 @@ or include individual modules:
 #include <OTA/OTA.h>
 #include <WiFiManager/WiFiManager.h>
 #include <MqttManager/MqttManager.h>
+#include <Sensor/Sensor.h>
 ```
 
 ## Component Documentation
@@ -75,7 +76,7 @@ or include individual modules:
 | `WiFiManager` | Dual-mode WiFi management | [View](documentation/WiFiManager.md) |
 | `MqttManager` | MQTT client wrapper | [View](documentation/MqttManager.md) |
 | `ConfigurationManager` | JSON config management | [View](documentation/ConfigurationManager.md) |
-
+| `Sensor` | Generic sensor templatet | [View](documentation/Sensor.md) |
 
 ## Structure 
 
@@ -87,7 +88,8 @@ IoTesp8266Framework/
 │   ├── OTA/                    # [Docs](documentation/OTA.md)
 │   ├── WiFiManager/            # [Docs](documentation/WiFiManager.md)
 │   ├── MqttManager/            # [Docs](documentation/MqttManager.md)
-│   └── ConfigurationManager/   # [Docs](documentation/ConfigurationManager.md)
+│   ├── ConfigurationManager/   # [Docs](documentation/ConfigurationManager.md)
+│   └── Sensor/                 # [Docs](documentation/Sensor.md)
 ├── data/                       # Static files and configs
 ├── documentation/              # Component documentation
 ├── library.json

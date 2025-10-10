@@ -1,13 +1,13 @@
 # HTTP Server Manager Class
 
-The HTTPServerManager class starts an HTTP server on the ESP8266. It serves static 
+The `HTTPServerManager` class starts an HTTP server on the ESP8266. It serves static 
 files from the filesystem (using LittleFS), provides a websocket 
 broadcast method and provides an easy integration of additional endpoint, that can 
 handle GET/POST API request and file uploads.
 
 
 ## Usage Example
-The below simple example illustrates how to setup and use HTTPServerManager object.
+The below simple example illustrates how to setup and use `HTTPServerManager` object.
 The endpoint "/custom" is registered as a GET method. 
 The endpoint "/broadcast" is registers also as a GET method, but it demostrates the 
 use of `broadcastWebSocketMessage` method.

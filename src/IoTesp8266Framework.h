@@ -11,5 +11,6 @@
 #include "HTTPServerManager/HTTPServerManager.h"
 #include "OTA/OTA.h"
 #include "MqttManager/MqttManager.h"
+#include "Sensor/Sensor.h"
 
 #endif
