@@ -108,8 +108,18 @@ public:
      * @brief Handles scanning for nearby Wi-Fi access points.
      * 
      * @param server Reference to the ESP8266WebServer instance.
+     * @param detailed If set to true, returns a JSON array of objects containing all data gathered for nearby APs; otherwise, returns an array of strings for display only.
      */
-    void handleScanAPs(ESP8266WebServer& server);
+    void handleScanAPs(ESP8266WebServer& server, bool detailed=false);
+
+    /**
+     * Interpret WiFi RSSI/dBm value as a quality description
+     * @param dBm - The signal strength in dBm (negative number, typically -30 to -100)
+     * @return String - Human-readable quality description
+     */
+    String interpretSignalStrength(int dBm);
+
+    String getEncryptionTypeString(uint8_t encryptionType);
 
 private:    
     HTTPServerManager& _serverManager;  ///< Reference to the HTTP server manager.
