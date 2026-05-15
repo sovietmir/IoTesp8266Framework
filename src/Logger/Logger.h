@@ -5,10 +5,10 @@
 #include <LittleFS.h>
 #include <time.h>  // for time() ctime()
 
-const int MAX_ARCHIVES = 3;
 
 class Logger {
 public:
+
     virtual void begin() {
       if (!LittleFS.begin()) {
         return;
@@ -42,6 +42,61 @@ public:
         return String(timeString); 
     }
 
+    /**
+     * Gets the size of a file
+     * 
+     * @param path Path to the file
+     * @return Size of the file in bytes, or 0 if file doesn't exist
+     */
+    static size_t getFileSize(const char* path) {
+      if (!LittleFS.exists(path)) {
+        return 0;
+      }
+      
+      File file = LittleFS.open(path, "r");
+      if (!file) {
+        return 0;
+      }
+      
+      size_t size = file.size();
+      file.close();
+      return size;
+    }
+
+    /**
+     * Checks if log rotation is needed based on file size
+     * 
+     * @param prefix Log file prefix (e.g., "system" → system.log)
+     * @param path   Directory path where log files are stored (default: "/logs/")
+     * @return true if rotation is needed, false otherwise
+     */
+    bool isRotationNeeded(String prefix = "system", String path = "/logs/") {
+      String currentLogPath = path + prefix + ".log";
+      size_t currentSize = getFileSize(currentLogPath.c_str());
+      return currentSize >= logSizeThreshold();
+    }
+
+    /**
+     * Calculate total storage used by logs for a specific prefix
+     * 
+     * @param prefix Log file prefix
+     * @param path   Directory path where log files are stored
+     * @return Total size in bytes
+     */
+    size_t getTotalLogSize(String prefix = "system", String path = "/logs/") {
+      size_t totalSize = 0;
+      
+      // Current log
+      totalSize += getFileSize((path + prefix + ".log").c_str());
+      
+      // Archives
+      for (size_t i = 1; i <= maxArchives(); i++) {
+        totalSize += getFileSize((path + prefix + "." + String(i) + ".log").c_str());
+      }
+      
+      return totalSize;
+    }
+
     bool moveFile(const char* oldPath, const char* newPath) {
       bool success = true;
     // Remove destination first if it exists
@@ -67,7 +122,7 @@ public:
      * @param prefix Log file prefix (e.g., "system" → system.log, system.1.log, system.2.log...)
      * @param path   Directory path where log files are stored (default: "/logs/")
      * 
-     * @example With MAX_ARCHIVES=3:
+     * @example With maximum archives to keep=3:
      *          Before: system.log, system.1.log, system.2.log
      *          After:  system.log (fresh), system.1.log (old system.log), 
      *                  system.2.log (old system.1.log), system.3.log (old system.2.log)
@@ -77,11 +132,29 @@ public:
      *       to write to the fresh system.log.
      */
     void rotateLogs(String prefix="system", String path="/logs/") {
-      for (int i = MAX_ARCHIVES; i > 0; i--) {
+      for (size_t i = maxArchives(); i > 0; i--) {
         String oldName = path + prefix + ((i>1)?"."+String(i - 1):"") + ".log"; //< /logs/system.<i-1>.log
         String newName = path + prefix +"." + String(i) + ".log"; //< /logs/system.<i>.log
         moveFile(oldName.c_str(), newName.c_str());        
       }
+    }
+
+    /**
+     * Checks if rotation is needed and performs it if necessary
+     * Call this before writing to a log file
+     * 
+     * @param prefix Log file prefix
+     * @param path   Directory path where log files are stored
+     * @return true if rotation was performed, false otherwise
+     */
+    bool checkAndRotate(String prefix = "system", String path = "/logs/") {
+      if (isRotationNeeded(prefix, path)) {
+        logf("Rotation triggered for %s (size: %d bytes, threshold: %d bytes)\n", 
+             prefix.c_str(), getFileSize((path + prefix + ".log").c_str()), logSizeThreshold());
+        rotateLogs(prefix, path);
+        return true;
+      }
+      return false;
     }
 
     void logToFS(String message, String prefix="system", String path="/logs/") {
@@ -142,11 +215,103 @@ public:
 
     template <typename... Args>
     void logSystem(const char* format, Args... args) { 
-      logWithLevel("system", format, args...); 
+      if(isSystemLoggingToFS()) {
+        logWithLevel("system", format, args...); 
+      }
+      else {
+        logf(format, args...);
+        log(String(" [")+millis()+"]\n");
+      }
     }
     void logSystem(String message) {
-      logWithLevel("error", message);
+      if(isSystemLoggingToFS()) {
+        logWithLevel("system", message);
+      }
+      else {
+        log(message+" ["+millis()+"]\n");
+      }
     }
+
+
+  /**
+   * Enable or disable logging of system informational messages to the file system
+   * 
+   * When enabled, system messages are written to both:
+   *   - Console/telnet (via log())
+   *   - File system (/logs/system.log)
+   * 
+   * When disabled, system messages are only written to console/telnet.
+   * This helps reduce flash memory wear during high-frequency system logging.
+   * Additionally, it reduces initialization time, as classes such as WifiManager
+   * typically write system logs when connecting to an access point.
+   * 
+   * @param value true to enable file system logging, false to disable
+   * @return The new state (true = enabled, false = disabled)
+   * 
+   * @note Error messages are always logged to file system regardless of this setting
+   * @see logSystem()
+   */
+    bool enableSystemLoggingToFS(bool enable){
+      _do_log_system_to_FS=enable;
+      log(_do_log_system_to_FS ? 
+        "System logging to file system enabled\n" : 
+        "System logging to file system disabled\n");
+      return _do_log_system_to_FS;
+    }
+    /**
+     * Get the current state of system informational logging to file system
+     * 
+     * @return true if system messages are being logged to file system, false if only console
+     * 
+     * @see enableSystemLoggingToFS(bool) to change this setting
+     * @see logSystem() which uses this setting
+     */
+    bool isSystemLoggingToFS() const {
+      return _do_log_system_to_FS;
+    }
+   
+   /**
+     * Set the maximum number of log archives to keep in the filesystem when 
+     * rotating the log files
+     * 
+     * @param max maximum number of log archives
+     */
+    size_t maxArchives(size_t max) {
+      _max_archives = max;
+      logf("Log size threshold set to %d bytes\n", _max_archives);
+      return _max_archives;
+    }    
+    /**
+     * Get the maximum number of log archives to keep
+     * 
+     * @return maximum number of log archives
+     */
+    size_t maxArchives() const {
+      return _max_archives;
+    }
+
+   /**
+     * Set the file size threshold for log rotation
+     * 
+     * @param threshold Size in bytes (e.g., 100*1024 for 100KB)
+     */
+    size_t logSizeThreshold(size_t threshold) {
+      _log_size_threshold = threshold;
+      logf("Log size threshold set to %d bytes\n", _log_size_threshold);
+      return _log_size_threshold;
+    }    
+    /**
+     * Get the current file size threshold
+     * 
+     * @return Size threshold in bytes
+     */
+    size_t logSizeThreshold() const {
+      return _log_size_threshold;
+    }
+private:
+  bool _do_log_system_to_FS  = false; //< The current state of system informational logging to file system 
+  size_t _max_archives       = 3;     //< The maximum number of log archives to keep in the filesystem when rotating the log files
+  size_t _log_size_threshold = 100 * 1024; //< Size threshold for rotation in bytes
 
 };
 
