@@ -1,4 +1,11 @@
 # Change Log
+## [1.3.1] - 2026-05-24
+Added periodic rotation checks in `logError` and `logSystem`. For this purpose, 
+a new method, `rotationCheckIntervalSec`, was introduced to set and get the 
+rotation check interval in seconds. Two new private attributes, `_lastErrorLogRotationCheckMs` 
+and `_lastSystemLogRotationCheckMs`, were also added to store the last time the 
+error and system log files were checked for rotation.
+
 ## [1.3.0] - 2026-05-15
 New methods:
 - `getFileSize()`: New method to get the size of a file in bytes.

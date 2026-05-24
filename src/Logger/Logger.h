@@ -207,15 +207,26 @@ public:
    // This is variadic template. Usage example: logger.logError("Reset reason: %s", ESP.getResetReason().c_str());
     template <typename... Args>
     void logError(const char* format, Args... args) { 
+      uint32_t now = millis();        
+      if (_lastErrorLogRotationCheckMs==0 || (now - _lastErrorLogRotationCheckMs >= (rotationCheckIntervalSec() * 1000))) {
+        _lastErrorLogRotationCheckMs = now;
+        checkAndRotate();
+      }
       logWithLevel("error", format, args...); 
     }
     void logError(String message) {
-      logWithLevel("error", message);
+      logError(message.c_str());
     }
 
     template <typename... Args>
     void logSystem(const char* format, Args... args) { 
       if(isSystemLoggingToFS()) {
+        uint32_t now = millis();        
+        if (_lastSystemLogRotationCheckMs==0 || (now - _lastSystemLogRotationCheckMs >= (rotationCheckIntervalSec() * 1000))) {
+          _lastSystemLogRotationCheckMs = now;
+          checkAndRotate();
+        }
+
         logWithLevel("system", format, args...); 
       }
       else {
@@ -224,12 +235,7 @@ public:
       }
     }
     void logSystem(String message) {
-      if(isSystemLoggingToFS()) {
-        logWithLevel("system", message);
-      }
-      else {
-        log(message+" ["+millis()+"]\n");
-      }
+      logSystem(message.c_str());
     }
 
 
@@ -308,10 +314,38 @@ public:
     size_t logSizeThreshold() const {
       return _log_size_threshold;
     }
+
+    /**
+     * Set the interval between automatic log rotation checks.
+     * 
+     * When logging to a file (methods `logSystem`, `logError`), the system 
+     * checks if the log file has exceeded the size threshold and needs rotation 
+     * (by calling  `checkAndRotate()`). This setting controls how often that 
+     * check occurs to avoid excessive file system access.
+     * 
+     * @param value Interval in seconds
+     * @return The new interval value
+    */
+    uint32_t rotationCheckIntervalSec(uint32_t value) {
+      _rotationCheckIntervalSec = value;
+      return _rotationCheckIntervalSec;
+    }
+    /**
+     * Get the current rotation log check interval.
+     * 
+     * @return Interval in seconds
+     */
+    uint32_t rotationCheckIntervalSec() const {
+      return _rotationCheckIntervalSec;
+    }
 private:
   bool _do_log_system_to_FS  = false; //< The current state of system informational logging to file system 
   size_t _max_archives       = 3;     //< The maximum number of log archives to keep in the filesystem when rotating the log files
   size_t _log_size_threshold = 100 * 1024; //< Size threshold for rotation in bytes
+
+  uint32_t _rotationCheckIntervalSec = 600;  // Check every 10 minuntess
+  uint32_t _lastErrorLogRotationCheckMs  = 0;
+  uint32_t _lastSystemLogRotationCheckMs  = 0;
 
 };
 
