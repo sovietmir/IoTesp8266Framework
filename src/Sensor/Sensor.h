@@ -115,7 +115,7 @@ public:
     /**
      * @brief Registers endpoints for the HTTP server.
      */
-    void registerEndpoints();
+    virtual void registerEndpoints();
     
 
     void setPeriodicity(int periodicity){_periodicity = periodicity;}
